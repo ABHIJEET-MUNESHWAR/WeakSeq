@@ -1,6 +1,13 @@
 # ---- Build stage ----
-FROM rust:1.82-slim AS builder
+# Dependencies (ruint >= 1.19 needs rustc 1.90, plus edition-2024 crates); pin
+# to the same stable CI uses. `-bookworm` matches the runtime base (glibc).
+FROM rust:1.95-slim-bookworm AS builder
 WORKDIR /build
+
+# aws-lc-rs (pulled transitively via the OTLP/tonic TLS stack) needs a C
+# toolchain + cmake + perl to build its crypto backend.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ make cmake perl && rm -rf /var/lib/apt/lists/*
 
 # Cache dependencies first.
 COPY Cargo.toml Cargo.lock ./
