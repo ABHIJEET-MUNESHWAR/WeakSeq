@@ -1,0 +1,95 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["weakseq", "sequencer"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "WeakSeq — Sequencer Overview",
+  "uid": "weakseq-overview",
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Node Up",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "expr": "up{job=\"weakseq-node\"}", "refId": "A" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Order Submit Rate (1m)",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [ { "expr": "sum(rate(weakseq_orders_submitted_total[1m]))", "refId": "A" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Batches Sealed Rate (1m)",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [ { "expr": "sum(rate(weakseq_batches_sealed_total[1m]))", "refId": "A" } ]
+    },
+    {
+      "type": "stat",
+      "title": "Rate-Limited (1m)",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [ { "expr": "sum(rate(weakseq_orders_rate_limited_total[1m]))", "refId": "A" } ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Orders vs Batches",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum(rate(weakseq_orders_submitted_total[1m]))", "legendFormat": "orders", "refId": "A" },
+        { "expr": "sum(rate(weakseq_batches_sealed_total[1m]))", "legendFormat": "batches", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Batch Size (orders, quantiles)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(weakseq_batch_orders_bucket[5m])) by (le))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.99, sum(rate(weakseq_batch_orders_bucket[5m])) by (le))", "legendFormat": "p99", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Matched Quantity per Batch (avg)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "rate(weakseq_batch_matched_quantity_sum[5m]) / clamp_min(rate(weakseq_batch_matched_quantity_count[5m]), 1)", "legendFormat": "avg matched", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Health Checks",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "expr": "sum(rate(weakseq_health_checks_total[1m]))", "legendFormat": "health", "refId": "A" }
+      ]
+    }
+  ]
+}

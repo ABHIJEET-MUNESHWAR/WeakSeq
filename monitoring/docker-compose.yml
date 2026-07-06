@@ -1,0 +1,113 @@
+# WeakSeq observability stack.
+# Usage:  docker compose -f monitoring/docker-compose.yml up -d --build
+# App:    http://localhost:8081/graphql   Grafana: http://localhost:3000 (admin/admin)
+name: weakseq-observability
+
+networks:
+  obs:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  oncall-data:
+  oncall-redis-data:
+
+services:
+  weakseq-node:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["--listen", "0.0.0.0:8081"]
+    environment:
+      RUST_LOG: "info"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_SERVICE_NAME: "weakseq-node"
+    ports:
+      - "8081:8081"
+    networks: [obs]
+    depends_on: [otel-collector]
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    networks: [obs]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [obs]
+    depends_on: [alertmanager]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks: [obs]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: "grafana-oncall-app"
+      GF_FEATURE_TOGGLES_ENABLE: "externalServiceAccounts"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks: [obs]
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  oncall-redis:
+    image: redis:7.4-alpine
+    volumes:
+      - oncall-redis-data:/data
+    networks: [obs]
+    restart: unless-stopped
+
+  oncall-engine:
+    image: grafana/oncall:v1.9.26
+    command: sh -c "uwsgi --ini uwsgi.ini"
+    environment:
+      BASE_URL: http://localhost:8082
+      SECRET_KEY: change-me-in-production-please-0123456789
+      REDIS_URI: redis://oncall-redis:6379/0
+      DATABASE_TYPE: sqlite3
+      DJANGO_SETTINGS_MODULE: settings.hobby
+      BROKER_TYPE: redis
+      GRAFANA_API_URL: http://grafana:3000
+    volumes:
+      - oncall-data:/var/lib/oncall
+    ports:
+      - "8082:8080"
+    networks: [obs]
+    depends_on: [oncall-redis]
+    restart: unless-stopped

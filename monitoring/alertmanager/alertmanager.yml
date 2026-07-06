@@ -1,0 +1,25 @@
+# Alertmanager routing for WeakSeq → Grafana OnCall.
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: grafana-oncall
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: grafana-oncall
+
+inhibit_rules:
+  - source_matchers: [alertname = "WeakSeqNodeDown"]
+    target_matchers: [severity =~ "warning|critical"]
+    equal: ["service"]
+
+receivers:
+  - name: grafana-oncall
+    webhook_configs:
+      - url: "http://oncall-engine:8080/integrations/v1/alertmanager/CHANGE_ME/"
+        send_resolved: true

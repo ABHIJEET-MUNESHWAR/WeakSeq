@@ -1,0 +1,51 @@
+# Alerting rules for WeakSeq.
+groups:
+  - name: weakseq-availability
+    rules:
+      - alert: WeakSeqNodeDown
+        expr: up{job="weakseq-node"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WeakSeq node is down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for over 1 minute."
+
+      - alert: OtelCollectorDown
+        expr: up{job="otel-collector"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpenTelemetry Collector is down"
+          description: "Traces are not being collected."
+
+  - name: weakseq-sequencing
+    rules:
+      - alert: WeakSeqNoBatchesSealed
+        expr: rate(weakseq_batches_sealed_total[5m]) == 0 and rate(weakseq_orders_submitted_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WeakSeq is accepting orders but sealing no batches"
+          description: "Orders are flowing but no batch has been sealed in 5m — the sealing loop or consensus may be stuck."
+
+      - alert: WeakSeqSustainedRateLimiting
+        expr: rate(weakseq_orders_rate_limited_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WeakSeq is shedding order load"
+          description: "Order submissions have been rate-limited continuously for 10m."
+
+      - alert: WeakSeqEmptyBatches
+        expr: |
+          histogram_quantile(0.5, sum(rate(weakseq_batch_orders_bucket[10m])) by (le)) < 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WeakSeq batches are mostly empty"
+          description: "Median batch size < 1 order over 10m; consider lengthening the batch interval."

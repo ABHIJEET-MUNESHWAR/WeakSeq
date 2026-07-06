@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "WeakSeq",
+    "description": "Weak-consensus batch-auction sequencer — GraphQL API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "Metrics",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/metrics", "host": ["{{baseUrl}}"], "path": ["metrics"] }
+      }
+    },
+    {
+      "name": "Submit Buy Order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"query\":\"mutation { submitOrder(side: BUY, price: 100, quantity: 5) }\"}"
+        }
+      }
+    },
+    {
+      "name": "Submit Sell Order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"query\":\"mutation { submitOrder(side: SELL, price: 90, quantity: 5) }\"}"
+        }
+      }
+    },
+    {
+      "name": "Seal Batch",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"query\":\"mutation { sealBatch { batchId clearingPrice matchedQuantity fills attestors certificateWeight } }\"}"
+        }
+      }
+    },
+    {
+      "name": "Status",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"query\":\"{ status { healthy mempoolDepth confirmedBatches validatorCount quorumThreshold } }\"}"
+        }
+      }
+    },
+    {
+      "name": "Latest Batch",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"query\":\"{ latestBatch { batchId clearingPrice matchedQuantity digest attestors } }\"}"
+        }
+      }
+    },
+    {
+      "name": "Batch By Id",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/graphql", "host": ["{{baseUrl}}"], "path": ["graphql"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"query\":\"{ batch(id: 0) { batchId matchedQuantity certificateWeight } }\"}"
+        }
+      }
+    }
+  ]
+}

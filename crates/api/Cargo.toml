@@ -1,0 +1,29 @@
+[package]
+name = "weakseq-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Event-driven sequencer service (CQRS) + GraphQL API for WeakSeq."
+
+[lints]
+workspace = true
+
+[dependencies]
+weakseq-types = { path = "../types" }
+weakseq-auction = { path = "../auction" }
+weakseq-consensus = { path = "../consensus" }
+async-graphql = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+governor = { workspace = true }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+metrics = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+serde_json = { workspace = true }

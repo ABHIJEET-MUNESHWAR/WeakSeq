@@ -1,0 +1,20 @@
+[package]
+name = "weakseq-consensus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Weak-consensus attestation collection & quorum-certificate formation."
+
+[lints]
+workspace = true
+
+[dependencies]
+weakseq-types = { path = "../types" }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
