@@ -9,7 +9,7 @@
 //! The clearing price maximizes `matched(p)`; ties are broken to minimize the
 //! demand/supply imbalance, then by the lower price (fully deterministic).
 //!
-//! Complexity: `O(k log k)` where `k` = distinct prices (sort dominates).
+//! Complexity: `O(n log k)` where `n` = orders and `k` = distinct prices.
 
 use weakseq_types::{Batch, BatchId, ClearingResult, Fill, Price, Quantity, Side};
 
@@ -37,33 +37,51 @@ fn clear_uniform(batch: &Batch) -> ClearingResult {
         return no_trade;
     }
 
-    // Candidate prices = every distinct order price.
+    // Candidate prices = every distinct order price (sorted ascending).
     let mut prices: Vec<u64> = batch.orders.iter().map(|o| o.price.ticks()).collect();
     prices.sort_unstable();
     prices.dedup();
 
+    let k = prices.len();
+    // Bucket buy/sell quantity by price *rank* (its index in the sorted price
+    // vector) via binary search — O(n log k) with no hashing. The old code
+    // rescanned every order for each candidate price, giving O(k · n); bucketing
+    // plus the prefix/suffix sums below make the whole scan O(n log k), a decisive
+    // win when prices are diverse (k ≈ n) and free of hash-map overhead when they
+    // are not (small k).
+    let mut buy_at = vec![0u64; k];
+    let mut sell_at = vec![0u64; k];
+    for o in &batch.orders {
+        // `prices` is the deduped set of order prices, so the rank always exists.
+        let i = prices.partition_point(|&p| p < o.price.ticks());
+        let q = o.quantity.lots();
+        match o.side {
+            Side::Buy => buy_at[i] += q,
+            Side::Sell => sell_at[i] += q,
+        }
+    }
+
+    // demand(pᵢ) = Σ buy qty with price ≥ pᵢ — a suffix sum over ascending prices.
+    let mut demand = vec![0u64; k];
+    let mut demand_acc = 0u64;
+    for i in (0..k).rev() {
+        demand_acc += buy_at[i];
+        demand[i] = demand_acc;
+    }
+
+    // supply(pᵢ) = Σ sell qty with price ≤ pᵢ — a prefix sum folded into the scan.
     let mut best: Option<(u64, u64, u64)> = None; // (price, matched, imbalance)
-    for &p in &prices {
-        let demand: u64 = batch
-            .orders
-            .iter()
-            .filter(|o| o.side == Side::Buy && o.price.ticks() >= p)
-            .map(|o| o.quantity.lots())
-            .sum();
-        let supply: u64 = batch
-            .orders
-            .iter()
-            .filter(|o| o.side == Side::Sell && o.price.ticks() <= p)
-            .map(|o| o.quantity.lots())
-            .sum();
-        let matched = demand.min(supply);
+    let mut supply = 0u64;
+    for i in 0..k {
+        supply += sell_at[i];
+        let matched = demand[i].min(supply);
         if matched == 0 {
             continue;
         }
-        let imbalance = demand.abs_diff(supply);
+        let imbalance = demand[i].abs_diff(supply);
         match best {
             Some((_, bm, bi)) if matched < bm || (matched == bm && imbalance >= bi) => {}
-            _ => best = Some((p, matched, imbalance)),
+            _ => best = Some((prices[i], matched, imbalance)),
         }
     }
 
